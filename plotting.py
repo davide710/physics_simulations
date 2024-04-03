@@ -22,7 +22,7 @@ def plot_vector_function(mesh, grad_u, Vector_space, fname, show_grid=False):
     topology, cell_types, geometry = plot.vtk_mesh(mesh, mesh.topology.dim)
     grid = pyvista.UnstructuredGrid(topology, cell_types, geometry)
 
-    cloud = pyvista.PolyData(midpoints[0::10, :])
+    cloud = pyvista.PolyData(midpoints[0::100, :])
     cloud["grad_u"] = valuesa[0::10, :]
     plotter = pyvista.Plotter(off_screen=True)
     #plotter.camera_position = [(-400, -300, 1000), (-400, -300, 0), (0, 1, 0)]

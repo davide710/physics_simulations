@@ -24,24 +24,18 @@ ds = Measure('ds', domain=domain, subdomain_data=facet_tags)
 Function_space = FunctionSpace(domain, ("Lagrange", 1))
 Vector_space = FunctionSpace(domain, ("DG", 0, (domain.geometry.dim,)))
 
-# rot B = J
-# 
-
-r = Function(Function_space)
-r.interpolate(lambda x: np.sqrt(x[0]**2 + x[1]**2))
-
 def Jx(x):
     y = x[1, :]
     x = x[0, :]
     jx = -y / (np.sqrt(x**2 + y**2) + 1e-9)
-    jx[np.abs(np.sqrt(x**2+y**2) - 6) > 0.5] = 0
+    jx[np.abs(np.sqrt(x**2+y**2) - 6) > 0.1] = 0
     return jx
 
 def Jy(x):
     y = x[1, :]
     x = x[0, :]
     jy = x / (np.sqrt(x**2 + y**2) + 1e-9)
-    jy[np.abs(np.sqrt(x**2+y**2) - 6) > 0.5] = 0
+    jy[np.abs(np.sqrt(x**2+y**2) - 6) > 0.1] = 0
     return jy
 
 tdim = domain.topology.dim
@@ -49,60 +43,11 @@ facets = locate_entities_boundary(domain, tdim - 1, lambda x: np.full(x.shape[1]
 dofs = locate_dofs_topological(Function_space, tdim - 1, facets)
 bc = dirichletbc(default_scalar_type(0), dofs, Function_space)
 
-B_z1 = TrialFunction(Function_space)
-B_z2 = TrialFunction(Function_space)
-v1 = TestFunction(Function_space)
-v2 = TestFunction(Function_space)
+"""
+(dB/dy, -dB/dx) = J
+B = dAy/dx - dAx/dy, A=(Ax, Ay)
+J = (d2/dxdy Ay - d2/dy2 Ax, - d2/dx2 Ay + d2/dxdy Ax)
 
-jx = Function(Function_space)
-jy = Function(Function_space)
-jx.interpolate(lambda x: Jx(x))
-jy.interpolate(lambda x: Jy(x))
-
-J = Function(Vector_space)
-J.interpolate(Expression(as_vector([jx, jy]), Vector_space.element.interpolation_points()))
-
-plot_scalar_function(domain, jx, Function_space, 'jx.png')
-plot_scalar_function(domain, jy, Function_space, 'jy.png')
-plot_vector_function(domain, J, Vector_space, 'j.png')
-
-#F1 = dot(grad(B_z1), grad(v1))/12*10e7*dx(2)-jx*v1*dx(2)
-F1 = B_z1.dx(1)*v1.dx(1)*dx(2)-jx*v1.dx(1)*dx(2)
-
-a, L = lhs(F1), rhs(F1)
-problem = LinearProblem(a, L, bcs=[bc])
-
-sol1 = Function(Function_space)
-sol1 = problem.solve()
-
-plot_scalar_function(domain, sol1, Function_space, 'sol1.png')
-
-#F2 = dot(grad(B_z2), grad(v2))/12*10e7*dx-jy*v2*dx
-F2= -B_z2.dx(0)*v2.dx(0)*dx(2)-jy*v2.dx(0)*dx(2)
-
-a, L = lhs(F2), rhs(F2)
-problem = LinearProblem(a, L, bcs=[bc])
-
-sol2 = Function(Function_space)
-sol2 = problem.solve()
-
-plot_scalar_function(domain, sol2, Function_space, 'sol2.png')
-
-#u1 = dot(as_vector([1, 0]), grad(solnUC))
-#u2 = dot(as_vector([1, 0]), grad(solnUS))
-
-B = Function(Function_space)
-#B.interpolate(Expression(sol2.dx(0) - sol1.dx(1), Function_space.element.interpolation_points()))
-B.x.array[:] = sol1.x.array + sol2.x.array
-
-plot_scalar_function(domain, B, Function_space, 'sol.png')
-print(f_di(B, np.array([0,0,0]), domain))
-print(f_di(B, np.array([1,0,0]), domain))
-print(f_di(B, np.array([0,2,0]), domain))
-print(f_di(B, np.array([-3,0,0]), domain))
-print(f_di(B, np.array([0,-4,0]), domain))
-print(f_di(B, np.array([5,0,0]), domain))
-
-new_j = Function(Vector_space)
-new_j.interpolate(Expression(as_vector([B.dx(1), -B.dx(0)]), Vector_space.element.interpolation_points()))
-plot_vector_function(domain, new_j, Vector_space, 'new_j.png')
+I:    || Jx*v1 dxdy = - || (d/dy Ax)*(d/dy v1) dxdy
+II:    || Jy*v2 dxdy = - || (d/dx Ay)*(d/dx v2) dxdy
+"""
