@@ -6,7 +6,7 @@ from dolfinx.io import gmshio
 from mpi4py import MPI
 from dolfinx.fem.petsc import LinearProblem
 from dolfinx.fem import Function, FunctionSpace, Constant, Expression, locate_dofs_topological, dirichletbc
-#from plotting import plot_scalar_function, plot_vector_function
+from plotting import plot_scalar_function, plot_vector_function
 from dolfinx.mesh import compute_midpoints, locate_entities_boundary
 
 
@@ -35,7 +35,7 @@ def jy(x):
     y = x[1, :]
     x = x[0, :]
     Jy = x / (np.sqrt(x**2 + y**2) + 1e-9)
-    Jy[np.abs(np.sqrt(x**2+y**2) - 6) > 0.1] = 0
+    Jy[np.abs(np.sqrt(x**2+y**2) - 6) > 0.5] = 0
     return Jy
 
 tdim = domain.topology.dim
@@ -63,7 +63,7 @@ J.interpolate(Expression(as_vector([Jx, Jy]), Vector_space.element.interpolation
 
 #plot_scalar_function(domain, Jx, Function_space, 'jx.png')
 #plot_scalar_function(domain, Jy, Function_space, 'jy.png')
-#plot_vector_function(domain, J, Vector_space, 'j.png')
+plot_vector_function(domain, J, Vector_space, 'j.png')
 
 """
 (dB/dy, -dB/dx) = J
@@ -78,15 +78,16 @@ ux = TrialFunction(Function_space)
 uy = TrialFunction(Function_space)
 v1 = TestFunction(Function_space)
 v2 = TestFunction(Function_space)
+mu0 = Constant(domain, dolfinx.default_scalar_type(4*3.14149e-7))
 
-F1 = ux.dx(1)*v1.dx(1)*dx(2)-Jx*v1*dx(2)
+F1 = ux.dx(1)*v1.dx(1)*dx(2)-mu0*Jx*v1*dx(2)
 a1, L1 = lhs(F1), rhs(F1)
 problem1 = LinearProblem(a1, L1, bcs=[bc])
 
 Ax = Function(Function_space)
 Ax = problem1.solve()
 
-F2 = uy.dx(0)*v2.dx(0)*dx(2)-Jy*v2*dx(2)
+F2 = uy.dx(0)*v2.dx(0)*dx(2)-mu0*Jy*v2*dx(2)
 a2, L2 = lhs(F2), rhs(F2)
 problem2 = LinearProblem(a2, L2, bcs=[bc])
 
@@ -96,15 +97,22 @@ Ay = problem2.solve()
 B = Function(Function_space)
 B.interpolate(Expression(Ay.dx(0) - Ax.dx(1), Function_space.element.interpolation_points()))
 
-#plot_scalar_function(domain, B, Function_space, 'B.png')
+plot_scalar_function(domain, B, Function_space, 'B.png')
 
+print('Calculated B')
 
-x = np.linspace(0, 5.5, 1000)
-y = 0*x
-r = np.sqrt(x**2 + y**2)
-P = [[x[i], y[i], 0] for i in range(x.shape[0])]
-z = [f_di(B, P[i], domain) for i in range(x.shape[0])]
+r = np.linspace(0.1, 5, 50)
+theta = np.linspace(0, 6.28, 10)
+values = np.zeros_like(r)
+for i, radius in enumerate(list(r)):
+    temp = []
+    for th in theta:
+        temp.append(f_di(B, [radius*np.cos(th), radius*np.sin(th), 0], domain)[0])
+    values[i] = np.mean(np.array(temp))
+
+print('calculated values')
 
 with open('results.csv', 'w') as f:
-    for i in range(x.shape[0]):
-        f.write(f'{r[i]},{z[i]}\n')
+    f.write(f'r,B\n')
+    for i in range(r.shape[0]):
+        f.write(f'{r[i]},{values[i]}\n')
