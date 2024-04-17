@@ -1,7 +1,7 @@
 import dolfinx
 from dolfinx import default_scalar_type
 import numpy as np
-from ufl import Measure, dot, lhs, grad, rhs, as_vector, sqrt, TrialFunction, TestFunction, curl
+from ufl import Measure, dot, lhs, grad, rhs, as_vector, sqrt, TrialFunction, TestFunction, curl, div
 from dolfinx.io import gmshio
 from mpi4py import MPI
 from dolfinx.fem.petsc import LinearProblem
@@ -10,6 +10,11 @@ from plotting import plot_scalar_function, plot_vector_function
 from dolfinx.mesh import compute_midpoints, locate_entities_boundary
 
 
+WIRE = 1
+WIRE_SUP = 2
+DOM_SUP = 3
+VACUUM = 4
+
 def f_di(f, x0, mesh):
     tree = dolfinx.geometry.bb_tree(mesh, mesh.geometry.dim)
     cell_candidates = dolfinx.geometry.compute_collisions_points(tree, x0)
@@ -17,4 +22,38 @@ def f_di(f, x0, mesh):
     return f.eval(x0, cells[0])
 
 domain, cell_tags, facet_tags = gmshio.read_from_msh("wire.msh", MPI.COMM_WORLD, gdim=3)
+
+dx = Measure('dx', domain=domain, subdomain_data=cell_tags)
+ds = Measure('ds', domain=domain, subdomain_data=facet_tags)
+
+Function_space = FunctionSpace(domain, ("Lagrange", 1))
+Vector_space = FunctionSpace(domain, ("DG", 0, (domain.geometry.dim,)))
+
+"""
+(lap V) * v = - rho / eps * v
+div (v * grad V) - dot(grad V, grad v) = - rho / eps * v
+dot(grad V, grad v) - bc = rho / eps * v
+"""
+
+eps = Constant(domain, 8.85e-12)
+
+tdim = domain.topology.dim
+facets = locate_entities_boundary(domain, tdim - 1, lambda x: np.full(x.shape[1], True))
+dofs = locate_dofs_topological(Function_space, tdim - 1, facets)
+bc = dirichletbc(default_scalar_type(0), dofs, Function_space)
+
+rho = 1e-3
+
+u = TrialFunction(Function_space)
+v = TestFunction(Function_space)
+
+F = dot(grad(u), grad(v))*dx(WIRE) + dot(grad(u), grad(v))*dx(VACUUM) - rho/eps*v*dx(WIRE)
+
+a, L = lhs(F), rhs(F)
+problem = LinearProblem(a, L, bcs=[bc])
+
+V = Function(Function_space)
+V = problem.solve()
+
+print(f_di(V, np.array([0.15, 0, 0.5]), domain))
 
