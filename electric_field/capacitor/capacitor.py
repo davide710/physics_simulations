@@ -15,7 +15,7 @@ def f_di(f, x0, mesh):
     cells = dolfinx.geometry.compute_colliding_cells(mesh, cell_candidates, x0)
     return f.eval(x0, cells[0])
 
-domain, cell_tags, facet_tags = gmshio.read_from_msh("capacitor.msh", MPI.COMM_WORLD, gdim=3)
+domain, cell_tags, facet_tags = gmshio.read_from_msh("electric_field/capacitor/capacitor.msh", MPI.COMM_WORLD, gdim=3)
 
 C_POS_SUP = 1
 C_NEG_SUP = 2
@@ -50,12 +50,15 @@ sigma = 0.22e-9
 F = dot(grad(u), grad(v))*dx(C_POS_VOL) + dot(grad(u), grad(v))*dx(C_NEG_VOL) + dot(grad(u), grad(v))*dx(VACUUM) - rho/eps*v*dx(C_POS_VOL) + rho/eps*v*dx(C_NEG_VOL)
 
 a, L = lhs(F), rhs(F)
-problem = LinearProblem(a, L)#, bcs=[bc])
+problem = LinearProblem(a, L, bcs=[bc])
 
 V = Function(Function_space)
 V = problem.solve()
 
-print(np.max(V.x.array))
+E = Function(Vector_space)
+E.interpolate(Expression(grad(V), Vector_space.element.interpolation_points()))
+
+#print(np.max(V.x.array))
 
 for i in range(10):
     z = 0.1 + 0.2/10*i
