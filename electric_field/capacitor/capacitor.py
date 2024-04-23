@@ -5,7 +5,7 @@ from ufl import Measure, dot, lhs, grad, rhs, as_vector, sqrt, TrialFunction, Te
 from dolfinx.io import gmshio
 from mpi4py import MPI
 from dolfinx.fem.petsc import LinearProblem
-from dolfinx.fem import Function, FunctionSpace, Constant, Expression, locate_dofs_topological, dirichletbc
+from dolfinx.fem import Function, FunctionSpace, Constant, Expression, locate_dofs_topological, locate_dofs_geometrical, dirichletbc
 from dolfinx.mesh import compute_midpoints, locate_entities_boundary
 
 
@@ -21,6 +21,7 @@ C_POS_SUP = 1
 C_NEG_SUP = 2
 C_POS_VOL = 3
 C_NEG_VOL = 4
+EXT_SUP = 5
 VACUUM = 6
 
 dx = Measure('dx', domain=domain, subdomain_data=cell_tags)
@@ -29,9 +30,13 @@ ds = Measure('ds', domain=domain, subdomain_data=facet_tags)
 Function_space = FunctionSpace(domain, ("Lagrange", 1))
 Vector_space = FunctionSpace(domain, ("DG", 0, (domain.geometry.dim,)))
 
-tdim = domain.topology.dim
-facets = locate_entities_boundary(domain, tdim - 1, lambda x: np.full(x.shape[1], True))
-dofs = locate_dofs_topological(Function_space, tdim - 1, facets)
+#tdim = domain.topology.dim
+#facets = locate_entities_boundary(domain, tdim - 1, lambda x: np.full(x.shape[1], True))
+#dofs = locate_dofs_topological(Function_space, tdim - 1, facets)
+def on_boundary(x):
+    return np.isclose(x[0], -5) + np.isclose(x[0], 15) + np.isclose(x[1], -5) + np.isclose(x[1], 15) + np.isclose(x[2], 0) + np.isclose(x[2], 5.4)
+
+dofs = locate_dofs_geometrical(Function_space, on_boundary)
 bc = dirichletbc(default_scalar_type(0), dofs, Function_space)
 
 
@@ -45,7 +50,6 @@ e.g. DV := 5 V
 """
 eps = 8.85e-12
 rho = 2.21e-9
-sigma = 0.22e-9
 
 F = dot(grad(u), grad(v))*dx(C_POS_VOL) + dot(grad(u), grad(v))*dx(C_NEG_VOL) + dot(grad(u), grad(v))*dx(VACUUM) - rho/eps*v*dx(C_POS_VOL) + rho/eps*v*dx(C_NEG_VOL)
 
@@ -58,8 +62,13 @@ V = problem.solve()
 E = Function(Vector_space)
 E.interpolate(Expression(grad(V), Vector_space.element.interpolation_points()))
 
-#print(np.max(V.x.array))
+import pandas as pd
 
-for i in range(10):
-    z = 0.1 + 0.2/10*i
-    print(f'z = {z} --> V = {f_di(V, np.array([5, 5, z]), domain)[0]}')
+df = pd.DataFrame(columns=['x', 'y', 'z', 'V'])
+df.x = domain.geometry.x[:, 0]
+df.y = domain.geometry.x[:, 1]
+df.z = domain.geometry.x[:, 2]
+df.V = V.x.array
+
+df.to_csv('results.csv', index=False)
+
