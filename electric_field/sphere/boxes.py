@@ -39,27 +39,29 @@ eps = 8.85e-12
 #dofs = locate_dofs_topological(Function_space, tdim - 1, facets)
 #bc = dirichletbc(default_scalar_type(450000), dofs, Function_space)
 
-#def on_boundary(x):
-#    return np.abs(np.sqrt(x[0]**2 + x[1]**2) - 2) < 0.02
-#
-#dofs = locate_dofs_geometrical(Function_space, on_boundary)
-#bc = dirichletbc(default_scalar_type(19.6), dofs, Function_space)
-#
-#def inner_boundary(x):
-#    return np.abs(np.sqrt(x[0]**2 + x[1]**2) - 0.5) < 0.02
-#
-#dofs = locate_dofs_geometrical(Function_space, inner_boundary)
-#bc_in = dirichletbc(default_scalar_type(0), dofs, Function_space)
+def on_boundary(x):
+    condition1 = (x[0] > 5.95)
+    condition2 = (x[0] < -4.95)
+    condition3 = (x[1] > 5.95)
+    condition4 = (x[1] < -4.95)
+    condition5 = (x[2] > 5.95)
+    condition6 = (x[2] < -4.95)
+    return np.any(np.vstack([condition1, condition2, condition3, condition4, condition5, condition6]), axis=0)
+
+dofs = locate_dofs_geometrical(Function_space, on_boundary)
+bc = dirichletbc(default_scalar_type(0), dofs, Function_space)
+
 
 rho = 1e-9
+zero = Constant(domain, default_scalar_type(0))
 
 u = TrialFunction(Function_space)
 v = TestFunction(Function_space)
 
-F = dot(grad(u), grad(v))*dx(BOX) + dot(grad(u), grad(v))*dx(VACUUM) - rho/eps*v*dx(BOX)
+F = dot(grad(u), grad(v))*dx(BOX) + dot(grad(u), grad(v))*dx(VACUUM) - rho/eps*v*dx(BOX) + zero/eps*v*dx(VACUUM)
 
 a, L = lhs(F), rhs(F)
-problem = LinearProblem(a, L)#, bcs=[bc, bc_in])
+problem = LinearProblem(a, L, bcs=[bc])
 
 V = Function(Function_space)
 V = problem.solve()
