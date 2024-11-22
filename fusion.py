@@ -1,12 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-N = 1000
-L = 15
-x = np.linspace(0, L, N+1)
+# https://www.astro.utoronto.ca/~mahajan/notebooks/quantum_tunnelling.html
+
+N = 1800
+L = 180
+x = np.linspace(-10, L-10, N+1)
 dx = x[1] - x[0]
-a = 0.3
-V0 = 0.5
+a = 15
+V0 = 12
 
 def integral(f, dx):
     return np.sum(f*dx, axis=0)
@@ -36,9 +38,9 @@ coeff_0[1] = 1 / np.sqrt(2)
 """
 
 """ gaussian packet"""
-sigma = 0.1
-k0 = -0.5
-psi_0 = np.exp(-(x[1:-1]-6.5)**2 / (2 * sigma**2)) * np.exp(1j * k0 * x[1:-1])
+sigma = 5
+k0 = -1
+psi_0 = np.exp(-(x[1:-1]-35)**2 / (2 * sigma**2)) * np.exp(1j * k0 * x[1:-1])
 norm  = integral(np.abs(psi_0)**2, dx)
 psi_0 = psi_0 / np.sqrt(norm)
 
@@ -47,7 +49,7 @@ for j in range(0, N-1):
     coeff_0[j] = integral(np.conj(eigenstates[j]) * psi_0, dx)
 
 
-timespan = np.linspace(0, 1, 1000)
+timespan = np.linspace(0, 300, 300)
 
 for t in timespan:
     c_n = coeff_0 * np.exp(-1j*En*t)
@@ -58,7 +60,6 @@ for t in timespan:
 
     plt.plot(x[1:-1], V_flat)
     plt.plot(x[1:-1], np.abs(psi)**2)
-    plt.annotate(f'{x[np.argmax(np.abs(psi)**2)]:.2f}', (0, 0.4))
-    plt.annotate(f'Energy = {np.sum(En * np.abs(c_n)**2):.2f}', (0, 0.3))
+    plt.annotate(f'Energy = {np.sum(En * np.abs(c_n)**2):.2f}', (0, 0))
     plt.draw()
     plt.pause(0.01)
