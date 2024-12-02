@@ -8,53 +8,50 @@ L = 250
 x = np.linspace(20, L, N+1)
 dx = x[1] - x[0]
 a = 40
-V0 = 50
+V0 = 40
 
 def integral(f, dx):
     return np.sum(f*dx, axis=0)
 
-T = -1 / (2 * dx**2) * (np.diag(-2*np.ones(N-1)) + np.diag(np.ones(N-2),1) + np.diag(np.ones(N-2),-1))
+def gaussian_packet(sigma=5, x0=90, k0=-1):
+    psi_0 = np.exp(-(x[1:-1] - x0)**2 / (2 * sigma**2)) * np.exp(1j * k0 * x[1:-1])
+    norm  = integral(np.abs(psi_0)**2, dx)
+    return psi_0 / np.sqrt(norm)
 
-V_flat = np.array([0 if pos < a else V0/pos for pos in x[1:-1]])
-V = np.diag(V_flat)
+def hamiltonian(V0=40):
+    T = -1 / (2 * dx**2) * (np.diag(-2*np.ones(N-1)) + np.diag(np.ones(N-2),1) + np.diag(np.ones(N-2),-1))
+    V_flat = np.array([0 if pos < a else V0/pos for pos in x[1:-1]])
+    V = np.diag(V_flat)
+    H = T + V
+    return H, V_flat
 
-H = T + V
-En, eigenstates = np.linalg.eigh(T + V)
-eigenstates = eigenstates.T
-norm = integral(np.abs(eigenstates)**2, dx)
-eigenstates = eigenstates / np.sqrt(norm)
+def get_eigenstates(H):
+    En, eigenstates = np.linalg.eigh(H)
+    eigenstates = eigenstates.T
+    norm = integral(np.abs(eigenstates)**2, dx)
+    eigenstates_list = eigenstates / np.sqrt(norm)
+    eigenstates_matrix = eigenstates_list.T
+    return En, eigenstates_list, eigenstates_matrix
 
-""" the first eigenstate is 1/pi^(1/4) exp(-x^2/2) as it should
-plt.plot(x[1:-1], np.abs(eigenstates[0])**2, label=f'computed, {integral(np.abs(eigenstates[0])**2, dx)}')
-plt.plot(x, np.abs(1 / np.power(np.pi, 1/4) * np.exp(-x**2 / 2))**2, label=f'exact, {integral(np.abs(1 / np.power(np.pi, 1/4) * np.exp(-x**2 / 2))**2, dx)}')
-plt.legend()
-plt.show()
-"""
+def get_coeffs_in_basis(psi, basis_list):
+    coeffs = np.zeros_like(basis_list[0], dtype=complex)
+    for j in range(0, len(basis_list)):
+        coeffs[j] = integral(np.conj(basis_list[j]) * psi, dx)
+    return coeffs
 
-""" Evolution of first two eigenstates
-coeff_0 = np.zeros_like(x[1:-1])
-coeff_0[0] = 1 / np.sqrt(2)
-coeff_0[1] = 1 / np.sqrt(2)
-"""
 
-""" gaussian packet"""
-sigma = 5
-x0 = 90
-k0 = -1
-psi_0 = np.exp(-(x[1:-1] - x0)**2 / (2 * sigma**2)) * np.exp(1j * k0 * x[1:-1])
-norm  = integral(np.abs(psi_0)**2, dx)
-psi_0 = psi_0 / np.sqrt(norm)
+H, V_flat = hamiltonian(V0=V0)
 
-coeff_0 = np.zeros_like(eigenstates[0], dtype=complex)
-for j in range(0, N-1):
-    coeff_0[j] = integral(np.conj(eigenstates[j]) * psi_0, dx)
+psi_0 = gaussian_packet(sigma=5, x0=90, k0=-1)
 
+En, eigenstates_list, eigenstates_matrix = get_eigenstates(H)
+
+coeff_0 = get_coeffs_in_basis(psi_0, eigenstates_list)
 
 timespan = np.linspace(0, 100, 100)
-
 for t in timespan:
     c_n = coeff_0 * np.exp(-1j*En*t)
-    psi = eigenstates.T @ (c_n)
+    psi = eigenstates_matrix @ (c_n)
     energy = np.sum(En * np.abs(c_n)**2)
     tunnelling_prob = integral(np.abs(psi[x[1:-1] < a])**2, dx)
 
