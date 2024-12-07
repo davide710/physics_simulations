@@ -54,11 +54,16 @@ for t in timespan:
     psi = eigenstates_matrix @ (c_n)
     energy = np.sum(En * np.abs(c_n)**2)
     tunnelling_prob = integral(np.abs(psi[x[1:-1] < a])**2, dx)
+    psi_mod_sq = np.abs(psi)**2
+    E = np.sum(En * np.abs(c_n)**2)
+
+    r2 = V0 / E
+    theoretical_tunnelling_prob = np.exp(-2 * integral(np.sqrt(V0 / x[(x > a) & (x < r2)] - E), dx))
 
     plt.clf()
     plt.plot(x[1:-1], V_flat)
-    plt.plot(x[1:-1], np.abs(psi)**2)
-    plt.annotate(f'Energy = {np.sum(En * np.abs(c_n)**2):.2f}', (a, 0))
+    plt.plot(x[1:-1], psi_mod_sq)
+    plt.annotate(f'Energy = {E:.2f}, th. t.p.= {theoretical_tunnelling_prob:.2f}', (a, 0))
     plt.annotate(f'Tunnelling prob: {tunnelling_prob:.2f}', (a, V0 / a * 0.9))
     plt.draw()
     if tunnelling_prob > 0.2:
