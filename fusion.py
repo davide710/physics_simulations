@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 N = 2500
 L = 250
-x = np.linspace(20, L, N+1)
+x = np.linspace(-20, L, N+1)
 dx = x[1] - x[0]
 a = 40
 V0 = 40
@@ -48,25 +48,29 @@ En, eigenstates_list, eigenstates_matrix = get_eigenstates(H)
 
 coeff_0 = get_coeffs_in_basis(psi_0, eigenstates_list)
 
+E = np.sum(En * np.abs(coeff_0)**2)
+r2 = V0 / E
+theoretical_tunnelling_prob = np.exp(-2 * integral(np.sqrt(V0 / x[(x > a) & (x < r2)] - E), dx))
+
 timespan = np.linspace(0, 100, 100)
+simulation_tunnelling_prob = 0
+dt = timespan[1] - timespan[0]
 for t in timespan:
     c_n = coeff_0 * np.exp(-1j*En*t)
     psi = eigenstates_matrix @ (c_n)
     energy = np.sum(En * np.abs(c_n)**2)
-    tunnelling_prob = integral(np.abs(psi[x[1:-1] < a])**2, dx)
+    tunnelled_fraction = integral(np.abs(psi[x[1:-1] < a])**2, dx)
     psi_mod_sq = np.abs(psi)**2
-    E = np.sum(En * np.abs(c_n)**2)
-
-    r2 = V0 / E
-    theoretical_tunnelling_prob = np.exp(-2 * integral(np.sqrt(V0 / x[(x > a) & (x < r2)] - E), dx))
-
+    simulation_tunnelling_prob += dt * tunnelled_fraction
     plt.clf()
     plt.plot(x[1:-1], V_flat)
     plt.plot(x[1:-1], psi_mod_sq)
     plt.annotate(f'Energy = {E:.2f}, th. t.p.= {theoretical_tunnelling_prob:.2f}', (a, 0))
-    plt.annotate(f'Tunnelling prob: {tunnelling_prob:.2f}', (a, V0 / a * 0.9))
+    plt.annotate(f'Tunnelled fraction: {tunnelled_fraction:.2f}', (a, V0 / a * 0.9))
     plt.draw()
-    if tunnelling_prob > 0.2:
-        plt.pause(5)
-        break
+    #if tunnelling_prob > 0.2:
+    #    plt.pause(5)
+    #    break
     plt.pause(0.01)
+
+print(simulation_tunnelling_prob)
