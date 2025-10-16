@@ -13,14 +13,22 @@ for i in range(int(np.sqrt(N))):
 Xs = np.array(Xs)
 
 t = 0
+xs = Xs.copy()
+dt = 0.1
 while t < 10:
-    xs = Xs.copy()
-    xs[:, 0] += t #* Xs[:, 1]
+    xs_spatial = xs.copy()
+    xs_spatial[:, 0] += xs[:, 0] * dt / (1 + t)
+    xs_spatial[:, 1] += 2 * xs[:, 1] * dt / (1 + t)
+
+    xs[:, 0] = Xs[:, 0] * (1 + t)
+    xs[:, 1] = Xs[:, 1] * (1 + t)**2
+
     
     plt.clf()
     plt.scatter(xs[:, 0], xs[:, 1])
-    plt.xlim(0, L)
-    plt.ylim(0, L)
+    plt.scatter(xs_spatial[:, 0], xs_spatial[:, 1], color='red', marker='x')
+    plt.xlim(-L, L)
+    plt.ylim(-L, L)
     plt.draw()
     plt.pause(0.05)
-    t += 0.1
+    t += dt
