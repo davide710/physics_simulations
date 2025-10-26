@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-N = 1e4
+N = 1e2
 L = 10
 
 # position N points in a 2d grid from -L to L, -L to L
@@ -14,14 +14,14 @@ Xs = np.array(Xs)
 
 t = 0
 xs = Xs.copy()
+xs_spatial = Xs.copy()
 dt = 0.1
 while t < 10:
-    xs_spatial = xs.copy()
-    xs_spatial[:, 0] += xs[:, 0] * dt / (1 + t)
-    xs_spatial[:, 1] += 2 * xs[:, 1] * dt / (1 + t)
+    xs_spatial[:, 0] += -2 * xs_spatial[:, 1] * dt
+    xs_spatial[:, 1] += 2 * xs_spatial[:, 0] * dt
 
-    xs[:, 0] = Xs[:, 0] * (1 + t)
-    xs[:, 1] = Xs[:, 1] * (1 + t)**2
+    xs[:, 0] = -Xs[:, 1] * np.sin(2*t) + Xs[:, 0] * np.cos(2*t)
+    xs[:, 1] = Xs[:, 1] * np.cos(2*t) + Xs[:, 0] * np.sin(2*t)
 
     
     plt.clf()
